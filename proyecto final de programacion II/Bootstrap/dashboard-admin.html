@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CyberVision Holding</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    
+    <script>
+    // ===== SISTEMA DE NOTIFICACIONES TOAST =====
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        
+        const icons = {
+            success: '<i class="fas fa-check-circle me-2"></i>',
+            danger: '<i class="fas fa-exclamation-circle me-2"></i>',
+            warning: '<i class="fas fa-exclamation-triangle me-2"></i>',
+            info: '<i class="fas fa-info-circle me-2"></i>'
+        };
+        
+        toastEl.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${icons[type] || icons.info}${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toastEl);
+        const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        toast.show();
+        
+        toastEl.addEventListener('hidden.bs.toast', () => {
+            toastEl.remove();
+        });
+    }
+
+    // ===== SISTEMA DE CONFIRMACIÓN MODAL =====
+    function showConfirm(message, callback, options = {}) {
+        const modalEl = document.getElementById('confirmModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const modalBody = document.getElementById('confirmModalBody');
+        const modalBtn = document.getElementById('confirmModalBtn');
+        const modalLabel = document.getElementById('confirmModalLabel');
+        
+        // Configurar contenido
+        modalBody.textContent = message;
+        modalBtn.textContent = options.confirmText || 'Confirmar';
+        modalBtn.className = `btn ${options.btnClass || 'btn-danger'}`;
+        
+        if (options.title) {
+            modalLabel.innerHTML = `<i class="${options.icon || 'fas fa-exclamation-triangle text-warning'} me-2"></i>${options.title}`;
+        } else {
+            modalLabel.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-2"></i>Confirmar Acción';
+        }
+        
+        // Limpiar listeners anteriores y agregar nuevo
+        const newBtn = modalBtn.cloneNode(true);
+        newBtn.id = 'confirmModalBtn'; // Mantener el ID
+        modalBtn.parentNode.replaceChild(newBtn, modalBtn);
+        
+        // Agregar nuevo listener
+        newBtn.addEventListener('click', function() {
+            modal.hide();
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
+        }, { once: true });
+        
+        modal.show();
+    }
+
+    // ===== VALIDACIÓN DE SEGURIDAD =====
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        
+        if (!currentUser || currentUser.role !== 'admin') {
+            showToast('Acceso denegado. Se requieren permisos de administrador', 'danger');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+            return;
+        }
+        
+        // Actualizar UI con información del usuario
+        const userDropdown = document.querySelector('.btn-user');
+        if (userDropdown) {
+            userDropdown.innerHTML = `<i class="fas fa-user-circle me-2"></i>${currentUser.username}`;
+        }
+        
+        const userDetails = document.querySelector('.user-details strong');
+        if (userDetails) {
+            userDetails.textContent = currentUser.username;
+        }
+    });
+    </script>
+</head>
+<body class="admin-body">
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index: 9999;"></div>
+    
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="company-brand">
+                <i class="fas fa-satellite-dish brand-icon"></i>
+                <div class="brand-text">
+                    <h3>CyberVision</h3>
+                    <span>Holding Admin</span>
+                </div>
+            </div>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li class="nav-item">
+                <a href="#dashboard" class="nav-link active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#empresas" class="nav-link">
+                    <i class="fas fa-building"></i>
+                    <span>Empresas</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#vendedores" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    <span>Vendedores</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#asesores" class="nav-link">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Asesores</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#paises" class="nav-link">
+                    <i class="fas fa-globe-americas"></i>
+                    <span>Países</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#reportes" class="nav-link">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reportes</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="dropdown dropup w-100">
+                <div class="user-info" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="user-details">
+                        <strong id="sidebar-username">Administrador</strong>
+                        <small>Sistema Holding</small>
+                    </div>
+                    <i class="fas fa-chevron-up ms-auto" style="font-size: 0.8rem; color: var(--text-muted);"></i>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-dark w-100">
+                    <li>
+                        <a class="dropdown-item" href="#perfil" onclick="verPerfil()">
+                            <i class="fas fa-user me-2"></i>Mi Perfil
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#configuracion" onclick="verConfiguracion()">
+                            <i class="fas fa-cog me-2"></i>Configuración
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="#" id="logoutBtn" onclick="logout(); return false;">
+                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="content-header">
+            <div class="header-left">
+                <button class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 id="contentTitle">Dashboard Principal</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-actions">
+                    <button class="btn btn-warning btn-sm" onclick="diagnosticarSistema()">
+                        <i class="fas fa-bug me-2"></i>Diagnóstico
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-notification" id="notificationBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge" id="notificationCount">3</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationBtn">
+                            <div class="notification-header">
+                                <h6>Notificaciones</h6>
+                                <button class="btn btn-sm btn-link" onclick="marcarTodasLeidas()">Marcar todas como leídas</button>
+                            </div>
+                            <div class="notification-body" id="notificationList">
+                                <!-- Las notificaciones se cargarán dinámicamente -->
+                            </div>
+                            <div class="notification-footer">
+                                <a href="#" onclick="verTodasNotificaciones()">Ver todas las notificaciones</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-user dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            Admin User
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Configuración</a></li>
+                            <li><a class="dropdown-item" href="#" id="logoutDropdown"><i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <section class="content-grid" id="mainContent">
+            <!-- El contenido se carga dinámicamente aquí -->
+        </section>
+    </main>
+
+    <!-- Modal para Crear/Editar Empresa -->
+    <div class="modal fade" id="empresaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content cyber-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="empresaModalTitle">Nueva Empresa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="empresaForm">
+                        <input type="hidden" id="empresaId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="empresaNombre" class="form-label">Nombre de la Empresa *</label>
+                                <input type="text" class="form-control" id="empresaNombre" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaPais" class="form-label">País de Sede *</label>
+                                <select class="form-select" id="empresaPais" required>
+                                    <option value="">Seleccionar país...</option>
+                                    <option value="España">España</option>
+                                    <option value="México">México</option>
+                                    <option value="Argentina">Argentina</option>
+                                    <option value="Colombia">Colombia</option>
+                                    <option value="Chile">Chile</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaCiudad" class="form-label">Ciudad de Sede</label>
+                                <input type="text" class="form-control" id="empresaCiudad">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaArea" class="form-label">Área de Mercado *</label>
+                                <select class="form-select" id="empresaArea" required>
+                                    <option value="">Seleccionar área...</option>
+                                    <option value="Telecomunicaciones">Telecomunicaciones</option>
+                                    <option value="Entretenimiento">Entretenimiento</option>
+                                    <option value="Streaming">Streaming</option>
+                                    <option value="Tecnología">Tecnología</option>
+                                    <option value="Medios">Medios</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaFacturacion" class="form-label">Facturación Anual (USD)</label>
+                                <input type="number" class="form-control" id="empresaFacturacion" placeholder="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaVendedores" class="form-label">N° de Vendedores</label>
+                                <input type="number" class="form-control" id="empresaVendedores" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaFechaIngreso" class="form-label">Fecha de Ingreso</label>
+                                <input type="date" class="form-control" id="empresaFechaIngreso">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="empresaEstado" class="form-label">Estado</label>
+                                <select class="form-select" id="empresaEstado">
+                                    <option value="Activa">Activa</option>
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="Inactiva">Inactiva</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label for="empresaDescripcion" class="form-label">Descripción</label>
+                                <textarea class="form-control" id="empresaDescripcion" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarEmpresa()">Guardar Empresa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: var(--cyber-gray); border: 1px solid var(--border-blue);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-blue) !important;">
+                    <h5 class="modal-title" id="confirmModalLabel">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        Confirmar Acción
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody">
+                    ¿Está seguro de que desea continuar con esta acción?
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border-blue) !important;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalBtn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Wizard de Registro de Empleados -->
+    <div class="modal fade" id="empleadosWizardModal" tabindex="-1" aria-labelledby="empleadosWizardLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" style="background: var(--cyber-gray); border: 1px solid var(--border-blue);">
+                <div class="modal-header border-bottom" style="border-color: var(--border-blue) !important;">
+                    <h5 class="modal-title" id="empleadosWizardLabel">
+                        <i class="fas fa-users-cog me-2"></i>
+                        Registro de Empleados - <span id="empresaNombreWizard"></span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Progress Steps -->
+                    <div class="wizard-progress mb-4">
+                        <div class="progress" style="height: 3px; background: var(--cyber-gray-light);">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: 33%" id="wizardProgressBar"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2" style="color: var(--text-gray);">
+                            <small class="wizard-step active" data-step="1"><i class="fas fa-info-circle"></i> Información</small>
+                            <small class="wizard-step" data-step="2"><i class="fas fa-user-tie"></i> Vendedores</small>
+                            <small class="wizard-step" data-step="3"><i class="fas fa-graduation-cap"></i> Asesores</small>
+                        </div>
+                    </div>
+
+                    <!-- Paso 1: Configuración Inicial -->
+                    <div class="wizard-step-content" id="wizardStep1">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Reglas de Negocio:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>Debe haber al menos <strong>1 asesor</strong></li>
+                                        <li>Si hay más de 30 empleados, el máximo de asesores es <strong>vendedores ÷ 2</strong></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="totalEmpleados" class="form-label">Total de Empleados *</label>
+                                <input type="number" class="form-control" id="totalEmpleados" min="2" required onchange="calcularDistribucion()">
+                                <small class="form-text text-muted">Mínimo 2 empleados (1 vendedor + 1 asesor)</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="cantidadVendedores" class="form-label">Vendedores *</label>
+                                <input type="number" class="form-control" id="cantidadVendedores" min="1" required onchange="validarDistribucion()">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="cantidadAsesores" class="form-label">Asesores *</label>
+                                <input type="number" class="form-control" id="cantidadAsesores" min="1" required onchange="validarDistribucion()">
+                            </div>
+                            <div class="col-12">
+                                <div id="validacionMsg" class="alert" role="alert" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paso 2: Registro de Vendedores -->
+                    <div class="wizard-step-content" id="wizardStep2" style="display: none;">
+                        <div class="mb-3">
+                            <h6><i class="fas fa-user-tie me-2"></i>Registrar Vendedores (<span id="vendedorCount">0</span>/<span id="vendedorTotal">0</span>)</h6>
+                            <div id="vendedoresContainer"></div>
+                        </div>
+                    </div>
+
+                    <!-- Paso 3: Registro de Asesores -->
+                    <div class="wizard-step-content" id="wizardStep3" style="display: none;">
+                        <div class="mb-3">
+                            <h6><i class="fas fa-graduation-cap me-2"></i>Registrar Asesores (<span id="asesorCount">0</span>/<span id="asesorTotal">0</span>)</h6>
+                            <div id="asesoresContainer"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top" style="border-color: var(--border-blue) !important;">
+                    <button type="button" class="btn btn-secondary" id="wizardBtnPrev" onclick="wizardPrevStep()" style="display: none;">
+                        <i class="fas fa-chevron-left me-2"></i>Anterior
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="wizardBtnNext" onclick="wizardNextStep()">
+                        Siguiente<i class="fas fa-chevron-right ms-2"></i>
+                    </button>
+                    <button type="button" class="btn btn-success" id="wizardBtnFinish" onclick="finalizarRegistroEmpleados()" style="display: none;">
+                        <i class="fas fa-check me-2"></i>Finalizar Registro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/api-service.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/pdf-export.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/backend-integration.js"></script>
+    <script src="js/empresa-wizard.js"></script>
+    <script src="js/gestion-avanzada.js"></script>
+    <script src="js/modales.js"></script>
+    <script src="js/asesorias-crud.js"></script>
+    <script src="js/admin-crud.js"></script>
+    <script src="js/vendedor-crud.js"></script>
+    
+    <script>
+    // ===== DATOS GLOBALES =====
+    let empresas = JSON.parse(localStorage.getItem('empresas')) || [
+        {
+            id: 1,
+            nombre: "CyberTel S.A.",
+            pais: "España",
+            ciudad: "Madrid",
+            area: "Telecomunicaciones",
+            estado: "Activa",
+            facturacion: 12500000,
+            vendedores: 450,
+            fechaIngreso: "2023-01-15",
+            descripcion: "Empresa líder en telecomunicaciones"
+        },
+        {
+            id: 2,
+            nombre: "Vision Media Group",
+            pais: "México", 
+            ciudad: "Ciudad de México",
+            area: "Entretenimiento",
+            estado: "Activa",
+            facturacion: 8900000,
+            vendedores: 320,
+            fechaIngreso: "2023-03-22",
+            descripcion: "Grupo de entretenimiento y medios"
+        },
+        {
+            id: 3,
+            nombre: "NetStream Argentina",
+            pais: "Argentina",
+            ciudad: "Buenos Aires",
+            area: "Streaming",
+            estado: "Pendiente", 
+            facturacion: 0,
+            vendedores: 0,
+            fechaIngreso: "2024-01-10",
+            descripcion: "Plataforma de streaming emergente"
+        }
+    ];
+
+    // Inicializar países si no existen
+    let paises = JSON.parse(localStorage.getItem('paises')) || [
+        { id: 1, nombre: "España", codigo: "ES" },
+        { id: 2, nombre: "México", codigo: "MX" },
+        { id: 3, nombre: "Argentina", codigo: "AR" },
+        { id: 4, nombre: "Colombia", codigo: "CO" },
+        { id: 5, nombre: "Chile", codigo: "CL" }
+    ];
+    localStorage.setItem('paises', JSON.stringify(paises));
+
+    // Función para cargar países en select
+    function cargarPaisesEnSelect() {
+        const selectPais = document.getElementById('empresaPais');
+        if (!selectPais) return;
+        
+        const paisesActualizados = JSON.parse(localStorage.getItem('paises')) || paises;
+        
+        selectPais.innerHTML = '<option value="">Seleccionar país...</option>';
+        paisesActualizados.forEach(pais => {
+            selectPais.innerHTML += `<option value="${pais.nombre}">${pais.nombre}</option>`;
+        });
+    }
+
+    // Función para cargar tabla de empresas
+    async function cargarTablaEmpresas() {
+        const tbody = document.getElementById('empresasTableBody');
+        if (!tbody) return;
+        
+        try {
+            // Intentar obtener desde backend
+            console.log('📡 Cargando empresas desde backend...');
+            empresas = await apiService.obtenerEmpresas();
+            console.log('✅ Empresas cargadas desde backend:', empresas.length);
+            
+        } catch (error) {
+            console.warn('⚠️ Error al cargar desde backend, usando localStorage:', error);
+            // Fallback a localStorage
+            empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+        }
+        
+        if (empresas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-building fa-2x mb-3 d-block"></i>
+                        No hay empresas registradas
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = empresas.map(empresa => `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="item-icon empresa me-3">
+                            <i class="fas fa-${getEmpresaIcon(empresa.area)}"></i>
+                        </div>
+                        <div>
+                            <strong>${empresa.nombre}</strong>
+                            ${empresa.descripcion ? `<br><small class="text-muted">${empresa.descripcion}</small>` : ''}
+                        </div>
+                    </div>
+                </td>
+                <td>${empresa.pais}</td>
+                <td>${empresa.area}</td>
+                <td>${empresa.facturacion ? `$${(empresa.facturacion / 1000000).toFixed(1)}M` : '-'}</td>
+                <td>${empresa.cantidadEmpleados || empresa.vendedores || 0}</td>
+                <td>
+                    <span class="badge ${getEstadoBadgeClass(empresa.estado)}">
+                        ${empresa.estado}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarEmpresa(${empresa.id})" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarEmpresa(${empresa.id})" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function getEmpresaIcon(area) {
+        const icons = {
+            'Telecomunicaciones': 'satellite',
+            'Entretenimiento': 'tv',
+            'Streaming': 'broadcast-tower',
+            'Tecnología': 'microchip',
+            'Medios': 'newspaper'
+        };
+        return icons[area] || 'building';
+    }
+
+    function getEstadoBadgeClass(estado) {
+        const clases = {
+            'Activa': 'bg-success',
+            'Pendiente': 'bg-warning',
+            'Inactiva': 'bg-secondary'
+        };
+        return clases[estado] || 'bg-secondary';
+    }
+
+    // Funciones CRUD para empresas
+    function nuevaEmpresa() {
+        console.log('➕ Creando nueva empresa...');
+        document.getElementById('empresaModalTitle').textContent = 'Nueva Empresa';
+        document.getElementById('empresaForm').reset();
+        document.getElementById('empresaId').value = '';
+        
+        // Cargar países actualizados
+        cargarPaisesEnSelect();
+        
+        // Establecer fecha actual por defecto
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('empresaFechaIngreso').value = today;
+        
+        const modal = new bootstrap.Modal(document.getElementById('empresaModal'));
+        modal.show();
+    }
+
+    function editarEmpresa(id) {
+        console.log('✏️ Editando empresa ID:', id);
+        const empresa = empresas.find(e => e.id === id);
+        
+        if (!empresa) {
+            showToast('No se encontró la empresa solicitada', 'warning');
+            return;
+        }
+        
+        // Cargar países actualizados
+        cargarPaisesEnSelect();
+        
+        document.getElementById('empresaModalTitle').textContent = 'Editar Empresa';
+        document.getElementById('empresaId').value = empresa.id;
+        document.getElementById('empresaNombre').value = empresa.nombre || '';
+        document.getElementById('empresaPais').value = empresa.pais || '';
+        document.getElementById('empresaCiudad').value = empresa.ciudad || '';
+        document.getElementById('empresaArea').value = empresa.area || '';
+        document.getElementById('empresaFacturacion').value = empresa.facturacion || '';
+        document.getElementById('empresaVendedores').value = empresa.vendedores || 0;
+        document.getElementById('empresaFechaIngreso').value = empresa.fechaIngreso || '';
+        document.getElementById('empresaEstado').value = empresa.estado || 'Activa';
+        document.getElementById('empresaDescripcion').value = empresa.descripcion || '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('empresaModal'));
+        modal.show();
+    }
+
+    async function guardarEmpresa() {
+        console.log('💾 Guardando empresa...');
+        const form = document.getElementById('empresaForm');
+        
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const empresaData = {
+            nombre: document.getElementById('empresaNombre').value,
+            pais: document.getElementById('empresaPais').value,
+            ciudad: document.getElementById('empresaCiudad').value,
+            area: document.getElementById('empresaArea').value,
+            facturacion: parseInt(document.getElementById('empresaFacturacion').value) || 0,
+            cantidadEmpleados: parseInt(document.getElementById('empresaVendedores').value) || 0,
+            fechaIngreso: document.getElementById('empresaFechaIngreso').value,
+            estado: document.getElementById('empresaEstado').value,
+            descripcion: document.getElementById('empresaDescripcion').value
+        };
+        
+        // Validar cantidad mínima de empleados
+        if (empresaData.cantidadEmpleados === 0) {
+            showToast('Error: Debe haber al menos 1 empleado en la empresa', 'danger');
+            return;
+        }
+        
+        const empresaId = document.getElementById('empresaId').value;
+        
+        try {
+            let empresaGuardada;
+            
+            if (empresaId) {
+                // Editar empresa existente
+                console.log('📝 Actualizando empresa en backend:', empresaId);
+                
+                // Obtener empresa actual para comparar cantidad de empleados
+                const empresaActual = empresas.find(e => e.id == empresaId);
+                const cantidadActual = empresaActual?.cantidadEmpleados || 0;
+                const cantidadNueva = empresaData.cantidadEmpleados;
+                
+                // Si cambió la cantidad de empleados, usar gestión avanzada
+                if (cantidadActual !== cantidadNueva && typeof mostrarModalEdicionEmpresa === 'function') {
+                    // Cerrar modal actual
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('empresaModal'));
+                    modal.hide();
+                    
+                    // Actualizar datos básicos primero
+                    const datosBasicos = {
+                        nombre: empresaData.nombre,
+                        pais: empresaData.pais,
+                        ciudad: empresaData.ciudad,
+                        direccion: empresaData.direccion,
+                        facturacion: empresaData.facturacion,
+                        estado: empresaData.estado
+                    };
+                    await apiService.actualizarEmpresa(parseInt(empresaId), datosBasicos);
+                    
+                    // Abrir modal de gestión de empleados
+                    setTimeout(() => {
+                        const empresaParaModal = {
+                            ...empresaActual,
+                            ...datosBasicos,
+                            id: parseInt(empresaId)
+                        };
+                        // Actualizar cantidad en el objeto temporal para el modal
+                        document.getElementById('cantidadActual').value = cantidadActual;
+                        document.getElementById('cantidadNueva').value = cantidadNueva;
+                        
+                        mostrarModalEdicionEmpresa(empresaParaModal);
+                        // Simular cambio para activar el flujo
+                        actualizarMensajeAccion(empresaParaModal);
+                    }, 300);
+                    
+                    return;
+                }
+                
+                // Si no cambió la cantidad, solo actualizar datos básicos
+                empresaGuardada = await apiService.actualizarEmpresa(parseInt(empresaId), empresaData);
+                showToast('Empresa actualizada exitosamente', 'success');
+                
+            } else {
+                // Nueva empresa - primero guardar la empresa
+                console.log('➕ Creando empresa en backend...');
+                empresaGuardada = await apiService.crearEmpresa(empresaData);
+                console.log('✅ Empresa creada:', empresaGuardada);
+                
+                // Cerrar modal de empresa
+                const modal = bootstrap.Modal.getInstance(document.getElementById('empresaModal'));
+                modal.hide();
+                
+                // Recargar tabla
+                await cargarTablaEmpresas();
+                
+                showToast('Empresa creada exitosamente', 'success');
+                
+                // Si tiene empleados, abrir wizard
+                if (empresaData.cantidadEmpleados > 0) {
+                    setTimeout(() => {
+                        abrirWizardEmpleados(empresaGuardada);
+                    }, 500);
+                }
+                return;
+            }
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('empresaModal'));
+            modal.hide();
+            
+            // Recargar tabla
+            await cargarTablaEmpresas();
+            
+        } catch (error) {
+            console.error('❌ Error al guardar empresa:', error);
+            showToast('Error al guardar empresa: ' + error.message, 'danger');
+            
+            // Fallback a localStorage
+            console.warn('⚠️ Usando fallback localStorage');
+            guardarEmpresaLocal(empresaData, empresaId);
+        }
+    }
+    
+    // Función de fallback para guardar localmente
+    function guardarEmpresaLocal(empresaData, empresaId) {
+        empresaData.id = empresaId ? parseInt(empresaId) : Date.now();
+        empresaData.vendedores = empresaData.cantidadEmpleados; // Compatibilidad
+        
+        if (empresaId) {
+            const index = empresas.findIndex(e => e.id == empresaId);
+            if (index !== -1) {
+                empresas[index] = { ...empresas[index], ...empresaData };
+            }
+        } else {
+            empresas.push(empresaData);
+        }
+        
+        localStorage.setItem('empresas', JSON.stringify(empresas));
+        cargarTablaEmpresas();
+        showToast('Empresa guardada localmente', 'warning');
+    }
+
+    function eliminarEmpresa(id) {
+        const empresa = empresas.find(e => e.id === id);
+        
+        if (!empresa) {
+            showToast('Empresa no encontrada', 'danger');
+            return;
+        }
+        
+        // Verificar si estamos en modo backend
+        const modoBackend = sessionStorage.getItem('modoBackend') === 'true';
+        
+        if (modoBackend && typeof eliminarEmpresaConGestion === 'function') {
+            // Usar nueva función de gestión avanzada
+            eliminarEmpresaConGestion(id, empresa.nombre);
+            return;
+        }
+        
+        // Modo localStorage (lógica original)
+        const vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        const asesores = JSON.parse(localStorage.getItem('asesores')) || [];
+        
+        const empleadosVendedores = vendedores.filter(v => v.empresaId === id && v.estado === 'Activo');
+        const empleadosAsesores = asesores.filter(a => a.empresaIds?.includes(id) && a.estado === 'Activo');
+        const totalEmpleados = empleadosVendedores.length + empleadosAsesores.length;
+        
+        if (totalEmpleados === 0) {
+            // No hay empleados, eliminar directamente
+            showConfirm(
+                `¿Está seguro de que desea eliminar la empresa "${empresa.nombre}"?`,
+                function() {
+                    empresas = empresas.filter(e => e.id !== id);
+                    localStorage.setItem('empresas', JSON.stringify(empresas));
+                    cargarTablaEmpresas();
+                    showToast('La empresa ha sido eliminada correctamente', 'success');
+                },
+                {
+                    title: 'Eliminar Empresa',
+                    icon: 'fas fa-trash text-danger',
+                    confirmText: 'Eliminar',
+                    btnClass: 'btn-danger'
+                }
+            );
+        } else {
+            // Hay empleados, preguntar qué hacer
+            mostrarModalEliminarEmpresaConEmpleados(empresa, empleadosVendedores, empleadosAsesores);
+        }
+    }
+
+    function mostrarModalEliminarEmpresaConEmpleados(empresa, empleadosVendedores, empleadosAsesores) {
+        const totalEmpleados = empleadosVendedores.length + empleadosAsesores.length;
+        const todasEmpresas = empresas.filter(e => e.id !== empresa.id);
+        
+        const modalHtml = `
+            <div class="modal fade" id="eliminarEmpresaModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Eliminar Empresa con Empleados
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-users me-2"></i>
+                                La empresa <strong>"${empresa.nombre}"</strong> tiene <strong>${totalEmpleados}</strong> empleado(s) activo(s).
+                                <br><small>(${empleadosVendedores.length} vendedor(es), ${empleadosAsesores.length} asesor(es))</small>
+                            </div>
+                            
+                            <h6 class="mb-3">¿Qué desea hacer con los empleados?</h6>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="accionEmpleados" id="desactivarEmpleados" value="desactivar" checked>
+                                <label class="form-check-label" for="desactivarEmpleados">
+                                    <strong>Desactivar todos los empleados</strong>
+                                    <br><small class="text-muted">Los empleados cambiarán a estado "Inactivo"</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="accionEmpleados" id="reubicarEmpleados" value="reubicar" ${todasEmpresas.length === 0 ? 'disabled' : ''}>
+                                <label class="form-check-label" for="reubicarEmpleados">
+                                    <strong>Reubicar en otra empresa</strong>
+                                    <br><small class="text-muted">Transferir empleados a otra empresa existente</small>
+                                </label>
+                            </div>
+                            
+                            <div id="selectorEmpresaDestino" class="mt-3" style="display: none;">
+                                <label class="form-label">Empresa destino:</label>
+                                <select class="form-select" id="empresaDestinoSelect">
+                                    <option value="">Seleccionar empresa...</option>
+                                    ${todasEmpresas.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('')}
+                                </select>
+                            </div>
+                            
+                            ${todasEmpresas.length === 0 ? '<div class="alert alert-info mt-3"><i class="fas fa-info-circle me-2"></i>No hay otras empresas disponibles para reubicar</div>' : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-danger" id="btnConfirmarEliminarEmpresa">
+                                <i class="fas fa-trash me-2"></i>Eliminar Empresa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remover modal anterior si existe
+        const modalAnterior = document.getElementById('eliminarEmpresaModal');
+        if (modalAnterior) {
+            modalAnterior.remove();
+        }
+        
+        // Agregar nuevo modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Configurar eventos
+        const radioDesactivar = document.getElementById('desactivarEmpleados');
+        const radioReubicar = document.getElementById('reubicarEmpleados');
+        const selectorDestino = document.getElementById('selectorEmpresaDestino');
+        const btnConfirmar = document.getElementById('btnConfirmarEliminarEmpresa');
+        
+        if (radioReubicar) {
+            radioReubicar.addEventListener('change', () => {
+                selectorDestino.style.display = radioReubicar.checked ? 'block' : 'none';
+            });
+        }
+        
+        if (radioDesactivar) {
+            radioDesactivar.addEventListener('change', () => {
+                selectorDestino.style.display = 'none';
+            });
+        }
+        
+        btnConfirmar.addEventListener('click', () => {
+            const accion = document.querySelector('input[name="accionEmpleados"]:checked').value;
+            
+            if (accion === 'reubicar') {
+                const empresaDestinoId = parseInt(document.getElementById('empresaDestinoSelect').value);
+                if (!empresaDestinoId) {
+                    showToast('Debe seleccionar una empresa destino', 'warning');
+                    return;
+                }
+                ejecutarEliminacionEmpresa(empresa.id, 'reubicar', empresaDestinoId);
+            } else {
+                ejecutarEliminacionEmpresa(empresa.id, 'desactivar');
+            }
+        });
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('eliminarEmpresaModal'));
+        modal.show();
+    }
+
+    function ejecutarEliminacionEmpresa(empresaId, accion, empresaDestinoId = null) {
+        let vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        let asesores = JSON.parse(localStorage.getItem('asesores')) || [];
+        
+        if (accion === 'desactivar') {
+            // Desactivar todos los empleados
+            vendedores = vendedores.map(v => {
+                if (v.empresaId === empresaId && v.estado === 'Activo') {
+                    return {...v, estado: 'Inactivo'};
+                }
+                return v;
+            });
+            
+            asesores = asesores.map(a => {
+                if (a.empresaIds?.includes(empresaId) && a.estado === 'Activo') {
+                    return {...a, estado: 'Inactivo'};
+                }
+                return a;
+            });
+            
+        } else if (accion === 'reubicar') {
+            // Reubicar empleados a otra empresa
+            vendedores = vendedores.map(v => {
+                if (v.empresaId === empresaId) {
+                    return {...v, empresaId: empresaDestinoId};
+                }
+                return v;
+            });
+            
+            asesores = asesores.map(a => {
+                if (a.empresaIds?.includes(empresaId)) {
+                    const nuevasEmpresas = a.empresaIds.filter(id => id !== empresaId);
+                    if (!nuevasEmpresas.includes(empresaDestinoId)) {
+                        nuevasEmpresas.push(empresaDestinoId);
+                    }
+                    return {...a, empresaIds: nuevasEmpresas};
+                }
+                return a;
+            });
+        }
+        
+        // Guardar cambios
+        localStorage.setItem('vendedores', JSON.stringify(vendedores));
+        localStorage.setItem('asesores', JSON.stringify(asesores));
+        
+        // Eliminar empresa
+        empresas = empresas.filter(e => e.id !== empresaId);
+        localStorage.setItem('empresas', JSON.stringify(empresas));
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('eliminarEmpresaModal'));
+        if (modal) modal.hide();
+        
+        // Actualizar interfaz
+        cargarTablaEmpresas();
+        
+        const mensaje = accion === 'desactivar' 
+            ? 'Empresa eliminada y empleados desactivados' 
+            : 'Empresa eliminada y empleados reubicados';
+        showToast(mensaje, 'success');
+    }
+
+    // ===== FUNCIONES PARA CAMBIO DE CANTIDAD DE EMPLEADOS =====
+    function abrirWizardAgregarEmpleados(empresaData, cantidadAgregar) {
+        console.log(`➕ Agregando ${cantidadAgregar} empleados a ${empresaData.nombre}`);
+        
+        // Resetear datos del wizard
+        wizardData = {
+            currentStep: 1,
+            empresa: empresaData,
+            totalEmpleados: cantidadAgregar,
+            cantidadVendedores: 0,
+            cantidadAsesores: 0,
+            vendedores: [],
+            asesores: [],
+            esAmpliacion: true // Flag para indicar que es ampliación
+        };
+        
+        // Configurar modal
+        document.getElementById('empresaNombreWizard').textContent = `${empresaData.nombre} - Agregar Empleados`;
+        document.getElementById('totalEmpleados').value = cantidadAgregar;
+        
+        // Calcular distribución sugerida
+        calcularDistribucion();
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('empleadosWizardModal'));
+        modal.show();
+        
+        // Resetear a paso 1
+        mostrarPasoWizard(1);
+    }
+
+    function mostrarModalDesactivarEmpleados(empresaData, cantidadDesactivar) {
+        console.log(`➖ Desactivando ${cantidadDesactivar} empleados de ${empresaData.nombre}`);
+        
+        const vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        const asesores = JSON.parse(localStorage.getItem('asesores')) || [];
+        
+        const empleadosEmpresa = [
+            ...vendedores.filter(v => v.empresaId === empresaData.id && v.estado === 'Activo').map(v => ({...v, tipo: 'Vendedor'})),
+            ...asesores.filter(a => a.empresaIds?.includes(empresaData.id) && a.estado === 'Activo').map(a => ({...a, tipo: 'Asesor'}))
+        ];
+        
+        if (empleadosEmpresa.length === 0) {
+            showToast('No hay empleados activos para desactivar', 'warning');
+            return;
+        }
+        
+        // Crear modal dinámico
+        const modalHtml = `
+            <div class="modal fade" id="desactivarEmpleadosModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="fas fa-user-minus me-2"></i>
+                                Seleccionar Empleados a Desactivar
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Debe seleccionar <strong>${cantidadDesactivar}</strong> empleado(s) para desactivar de <strong>${empresaData.nombre}</strong>
+                            </div>
+                            <div class="list-group" id="listaEmpleadosDesactivar">
+                                ${empleadosEmpresa.map(emp => `
+                                    <label class="list-group-item">
+                                        <input class="form-check-input me-2" type="checkbox" value="${emp.codigo}" data-tipo="${emp.tipo}">
+                                        <strong>${emp.codigo}</strong> - ${emp.nombre}
+                                        <span class="badge bg-secondary ms-2">${emp.tipo}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                Seleccionados: <strong id="contadorSeleccionados">0</strong> / ${cantidadDesactivar}
+                            </small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-warning" id="btnConfirmarDesactivacion" disabled>
+                                Desactivar Seleccionados
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remover modal anterior si existe
+        const modalAnterior = document.getElementById('desactivarEmpleadosModal');
+        if (modalAnterior) {
+            modalAnterior.remove();
+        }
+        
+        // Agregar nuevo modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Configurar eventos
+        const checkboxes = document.querySelectorAll('#listaEmpleadosDesactivar input[type="checkbox"]');
+        const btnConfirmar = document.getElementById('btnConfirmarDesactivacion');
+        const contador = document.getElementById('contadorSeleccionados');
+        
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const seleccionados = Array.from(checkboxes).filter(c => c.checked);
+                contador.textContent = seleccionados.length;
+                btnConfirmar.disabled = seleccionados.length !== cantidadDesactivar;
+            });
+        });
+        
+        btnConfirmar.addEventListener('click', () => {
+            const seleccionados = Array.from(checkboxes)
+                .filter(c => c.checked)
+                .map(c => ({codigo: c.value, tipo: c.dataset.tipo}));
+            
+            desactivarEmpleadosSeleccionados(seleccionados, empresaData);
+        });
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('desactivarEmpleadosModal'));
+        modal.show();
+    }
+
+    function desactivarEmpleadosSeleccionados(empleados, empresaData) {
+        let vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        let asesores = JSON.parse(localStorage.getItem('asesores')) || [];
+        
+        empleados.forEach(emp => {
+            if (emp.tipo === 'Vendedor') {
+                const index = vendedores.findIndex(v => v.codigo === emp.codigo);
+                if (index !== -1) {
+                    vendedores[index].estado = 'Inactivo';
+                }
+            } else if (emp.tipo === 'Asesor') {
+                const index = asesores.findIndex(a => a.codigo === emp.codigo);
+                if (index !== -1) {
+                    asesores[index].estado = 'Inactivo';
+                }
+            }
+        });
+        
+        localStorage.setItem('vendedores', JSON.stringify(vendedores));
+        localStorage.setItem('asesores', JSON.stringify(asesores));
+        
+        // Cerrar modales
+        const modalDesactivar = bootstrap.Modal.getInstance(document.getElementById('desactivarEmpleadosModal'));
+        const modalEmpresa = bootstrap.Modal.getInstance(document.getElementById('empresaModal'));
+        
+        if (modalDesactivar) modalDesactivar.hide();
+        if (modalEmpresa) modalEmpresa.hide();
+        
+        // Actualizar empresa en localStorage
+        const empresas = JSON.parse(localStorage.getItem('empresas')) || [];
+        const index = empresas.findIndex(e => e.id === empresaData.id);
+        if (index !== -1) {
+            empresas[index] = empresaData;
+            localStorage.setItem('empresas', JSON.stringify(empresas));
+        }
+        
+        cargarTablaEmpresas();
+        showToast(`${empleados.length} empleado(s) desactivado(s) correctamente`, 'success');
+    }
+
+    // ===== WIZARD DE REGISTRO DE EMPLEADOS =====
+    let wizardData = {
+        currentStep: 1,
+        empresa: null,
+        totalEmpleados: 0,
+        cantidadVendedores: 0,
+        cantidadAsesores: 0,
+        vendedores: [],
+        asesores: []
+    };
+
+    function abrirWizardEmpleados(empresaData) {
+        console.log('🧙 Abriendo wizard de empleados para:', empresaData.nombre);
+        
+        // Resetear datos del wizard
+        wizardData = {
+            currentStep: 1,
+            empresa: empresaData,
+            totalEmpleados: empresaData.vendedores || 0,
+            cantidadVendedores: 0,
+            cantidadAsesores: 0,
+            vendedores: [],
+            asesores: []
+        };
+        
+        // Configurar modal
+        document.getElementById('empresaNombreWizard').textContent = empresaData.nombre;
+        document.getElementById('totalEmpleados').value = empresaData.vendedores || 2;
+        
+        // Calcular distribución sugerida
+        calcularDistribucion();
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('empleadosWizardModal'));
+        modal.show();
+        
+        // Resetear a paso 1
+        mostrarPasoWizard(1);
+    }
+
+    function calcularDistribucion() {
+        const total = parseInt(document.getElementById('totalEmpleados').value) || 0;
+        
+        if (total < 2) {
+            document.getElementById('cantidadVendedores').value = '';
+            document.getElementById('cantidadAsesores').value = '';
+            return;
+        }
+        
+        wizardData.totalEmpleados = total;
+        
+        // Aplicar reglas de negocio
+        let vendedores, asesores;
+        
+        if (total <= 30) {
+            // Pequeñas: mayoría vendedores, mínimo 1 asesor
+            asesores = 1;
+            vendedores = total - asesores;
+        } else {
+            // Grandes: asesores <= vendedores / 2
+            vendedores = Math.ceil(total * 2 / 3);
+            asesores = total - vendedores;
+            
+            const maxAsesores = Math.floor(vendedores / 2);
+            if (asesores > maxAsesores) {
+                asesores = maxAsesores;
+                vendedores = total - asesores;
+            }
+        }
+        
+        document.getElementById('cantidadVendedores').value = vendedores;
+        document.getElementById('cantidadAsesores').value = asesores;
+        
+        validarDistribucion();
+    }
+
+    function validarDistribucion() {
+        const total = parseInt(document.getElementById('totalEmpleados').value) || 0;
+        const vendedores = parseInt(document.getElementById('cantidadVendedores').value) || 0;
+        const asesores = parseInt(document.getElementById('cantidadAsesores').value) || 0;
+        
+        const msgDiv = document.getElementById('validacionMsg');
+        const btnNext = document.getElementById('wizardBtnNext');
+        
+        let valido = true;
+        let mensajes = [];
+        
+        // Validar suma
+        if (vendedores + asesores !== total) {
+            valido = false;
+            mensajes.push(`La suma de vendedores y asesores debe ser ${total}`);
+        }
+        
+        // Validar mínimo 1 asesor
+        if (asesores < 1) {
+            valido = false;
+            mensajes.push('Debe haber al menos 1 asesor');
+        }
+        
+        // Validar regla de >30 empleados
+        if (total > 30) {
+            const maxAsesores = Math.floor(vendedores / 2);
+            if (asesores > maxAsesores) {
+                valido = false;
+                mensajes.push(`Para ${total} empleados, máximo ${maxAsesores} asesores permitidos (vendedores ÷ 2)`);
+            }
+        }
+        
+        if (valido) {
+            msgDiv.style.display = 'none';
+            btnNext.disabled = false;
+            wizardData.cantidadVendedores = vendedores;
+            wizardData.cantidadAsesores = asesores;
+        } else {
+            msgDiv.className = 'alert alert-warning';
+            msgDiv.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>' + mensajes.join('<br>');
+            msgDiv.style.display = 'block';
+            btnNext.disabled = true;
+        }
+        
+        return valido;
+    }
+
+    function mostrarPasoWizard(paso) {
+        wizardData.currentStep = paso;
+        
+        // Ocultar todos los pasos
+        document.querySelectorAll('.wizard-step-content').forEach(el => el.style.display = 'none');
+        
+        // Mostrar paso actual
+        document.getElementById(`wizardStep${paso}`).style.display = 'block';
+        
+        // Actualizar progress bar
+        const progreso = (paso / 3) * 100;
+        document.getElementById('wizardProgressBar').style.width = progreso + '%';
+        
+        // Actualizar clases de steps
+        document.querySelectorAll('.wizard-step').forEach((el, index) => {
+            el.classList.remove('active', 'completed');
+            if (index + 1 < paso) el.classList.add('completed');
+            if (index + 1 === paso) el.classList.add('active');
+        });
+        
+        // Controlar botones
+        document.getElementById('wizardBtnPrev').style.display = paso > 1 ? 'inline-block' : 'none';
+        document.getElementById('wizardBtnNext').style.display = paso < 3 ? 'inline-block' : 'none';
+        document.getElementById('wizardBtnFinish').style.display = paso === 3 ? 'inline-block' : 'none';
+        
+        // Generar formularios según el paso
+        if (paso === 2) {
+            generarFormulariosVendedores();
+        } else if (paso === 3) {
+            generarFormulariosAsesores();
+        }
+    }
+
+    function wizardNextStep() {
+        if (wizardData.currentStep === 1) {
+            if (!validarDistribucion()) return;
+        } else if (wizardData.currentStep === 2) {
+            if (!validarVendedores()) {
+                showToast('Complete todos los datos de vendedores', 'warning');
+                return;
+            }
+        }
+        
+        mostrarPasoWizard(wizardData.currentStep + 1);
+    }
+
+    function wizardPrevStep() {
+        mostrarPasoWizard(wizardData.currentStep - 1);
+    }
+
+    function generarFormulariosVendedores() {
+        const container = document.getElementById('vendedoresContainer');
+        const cantidad = wizardData.cantidadVendedores;
+        
+        document.getElementById('vendedorTotal').textContent = cantidad;
+        
+        let html = '';
+        for (let i = 0; i < cantidad; i++) {
+            const vendedor = wizardData.vendedores[i] || {};
+            html += `
+                <div class="empleado-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-user-tie me-2"></i>Vendedor #${i + 1}</h6>
+                        <span class="badge badge-empleado bg-primary">Vendedor</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre Completo *</label>
+                            <input type="text" class="form-control" id="vendedor_nombre_${i}" value="${vendedor.nombre || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dirección *</label>
+                            <input type="text" class="form-control" id="vendedor_direccion_${i}" value="${vendedor.direccion || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="vendedor_email_${i}" value="${vendedor.email || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono *</label>
+                            <input type="tel" class="form-control" id="vendedor_telefono_${i}" value="${vendedor.telefono || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Usuario *</label>
+                            <input type="text" class="form-control" id="vendedor_username_${i}" value="${vendedor.username || ''}" minlength="4" required>
+                            <small class="form-text text-muted">Mínimo 4 caracteres</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" id="vendedor_password_${i}" value="${vendedor.password || ''}" minlength="6" required>
+                            <small class="form-text text-muted">Mínimo 6 caracteres</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+
+    function generarFormulariosAsesores() {
+        const container = document.getElementById('asesoresContainer');
+        const cantidad = wizardData.cantidadAsesores;
+        
+        document.getElementById('asesorTotal').textContent = cantidad;
+        
+        let html = '';
+        for (let i = 0; i < cantidad; i++) {
+            const asesor = wizardData.asesores[i] || {};
+            html += `
+                <div class="empleado-card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Asesor #${i + 1}</h6>
+                        <span class="badge badge-empleado bg-info">Asesor</span>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre Completo *</label>
+                            <input type="text" class="form-control" id="asesor_nombre_${i}" value="${asesor.nombre || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dirección *</label>
+                            <input type="text" class="form-control" id="asesor_direccion_${i}" value="${asesor.direccion || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="asesor_email_${i}" value="${asesor.email || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono *</label>
+                            <input type="tel" class="form-control" id="asesor_telefono_${i}" value="${asesor.telefono || ''}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Titulación *</label>
+                            <input type="text" class="form-control" id="asesor_titulacion_${i}" value="${asesor.titulacion || ''}" placeholder="Ej: Lic. en Administración" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Área de Mercado *</label>
+                            <select class="form-select" id="asesor_area_${i}" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Telecomunicaciones">Telecomunicaciones</option>
+                                <option value="Entretenimiento">Entretenimiento</option>
+                                <option value="Streaming">Streaming</option>
+                                <option value="Tecnología">Tecnología</option>
+                                <option value="Medios">Medios</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Usuario *</label>
+                            <input type="text" class="form-control" id="asesor_username_${i}" value="${asesor.username || ''}" minlength="4" required>
+                            <small class="form-text text-muted">Mínimo 4 caracteres</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" id="asesor_password_${i}" value="${asesor.password || ''}" minlength="6" required>
+                            <small class="form-text text-muted">Mínimo 6 caracteres</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+
+    function validarVendedores() {
+        wizardData.vendedores = [];
+        
+        for (let i = 0; i < wizardData.cantidadVendedores; i++) {
+            const nombre = document.getElementById(`vendedor_nombre_${i}`);
+            const direccion = document.getElementById(`vendedor_direccion_${i}`);
+            const email = document.getElementById(`vendedor_email_${i}`);
+            const telefono = document.getElementById(`vendedor_telefono_${i}`);
+            const username = document.getElementById(`vendedor_username_${i}`);
+            const password = document.getElementById(`vendedor_password_${i}`);
+            
+            if (!nombre.value || !direccion.value || !email.value || !telefono.value || !username.value || !password.value) {
+                nombre.reportValidity();
+                return false;
+            }
+            
+            wizardData.vendedores.push({
+                nombre: nombre.value,
+                direccion: direccion.value,
+                email: email.value,
+                telefono: telefono.value,
+                username: username.value,
+                password: password.value,
+                tipo: 'VENDEDOR'
+            });
+        }
+        
+        return true;
+    }
+
+    function validarAsesores() {
+        wizardData.asesores = [];
+        
+        for (let i = 0; i < wizardData.cantidadAsesores; i++) {
+            const nombre = document.getElementById(`asesor_nombre_${i}`);
+            const direccion = document.getElementById(`asesor_direccion_${i}`);
+            const email = document.getElementById(`asesor_email_${i}`);
+            const telefono = document.getElementById(`asesor_telefono_${i}`);
+            const titulacion = document.getElementById(`asesor_titulacion_${i}`);
+            const area = document.getElementById(`asesor_area_${i}`);
+            const username = document.getElementById(`asesor_username_${i}`);
+            const password = document.getElementById(`asesor_password_${i}`);
+            
+            if (!nombre.value || !direccion.value || !email.value || !telefono.value || 
+                !titulacion.value || !area.value || !username.value || !password.value) {
+                nombre.reportValidity();
+                return false;
+            }
+            
+            wizardData.asesores.push({
+                nombre: nombre.value,
+                direccion: direccion.value,
+                email: email.value,
+                telefono: telefono.value,
+                titulacion: titulacion.value,
+                areaMercado: area.value,
+                username: username.value,
+                password: password.value,
+                tipo: 'ASESOR'
+            });
+        }
+        
+        return true;
+    }
+
+    function finalizarRegistroEmpleados() {
+        console.log('🏁 Finalizando registro de empleados...');
+        
+        if (!validarAsesores()) {
+            showToast('Complete todos los datos de asesores', 'warning');
+            console.warn('❌ Validación de asesores falló');
+            return;
+        }
+        
+        console.log('✅ Validación de asesores exitosa');
+        console.log('📊 Datos del wizard:', {
+            vendedores: wizardData.cantidadVendedores,
+            asesores: wizardData.cantidadAsesores,
+            empresa: wizardData.empresa.nombre
+        });
+        
+        // Mostrar confirmación
+        showConfirm(
+            `¿Desea registrar ${wizardData.cantidadVendedores} vendedores y ${wizardData.cantidadAsesores} asesores para la empresa ${wizardData.empresa.nombre}?`,
+            function() {
+                console.log('✅ Confirmación aceptada, guardando empleados...');
+                guardarEmpleadosEnStorage();
+            },
+            {
+                title: 'Confirmar Registro de Empleados',
+                icon: 'fas fa-users-cog text-success',
+                confirmText: 'Registrar Empleados',
+                btnClass: 'btn-success'
+            }
+        );
+    }
+
+    async function guardarEmpleadosEnStorage() {
+        console.log('💾 Guardando empleados en backend...');
+        
+        try {
+            // Preparar empleados para registro batch
+            const empleados = [];
+            
+            // Agregar vendedores
+            wizardData.vendedores.forEach((v) => {
+                empleados.push({
+                    tipo: 'VENDEDOR',
+                    nombre: v.nombre,
+                    direccion: v.direccion,
+                    email: v.email,
+                    telefono: v.telefono,
+                    username: v.username,
+                    password: v.password
+                });
+            });
+            
+            // Agregar asesores
+            wizardData.asesores.forEach((a) => {
+                empleados.push({
+                    tipo: 'ASESOR',
+                    nombre: a.nombre,
+                    direccion: a.direccion,
+                    email: a.email,
+                    telefono: a.telefono,
+                    username: a.username,
+                    password: a.password,
+                    titulacion: a.titulacion,
+                    areaMercado: a.areaMercado
+                });
+            });
+            
+            console.log(`📤 Enviando ${empleados.length} empleados al backend...`);
+            
+            // Enviar al backend
+            const response = await apiService.registrarEmpleadosBatch(wizardData.empresa.id, empleados);
+            
+            console.log('✅ Empleados registrados en backend:', response);
+            
+            // También guardar en localStorage como respaldo (con los datos del servidor)
+            await guardarEmpleadosEnLocalStorage(response.empleados || empleados);
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('empleadosWizardModal'));
+            modal.hide();
+            
+            // Mostrar resumen
+            showToast(`Registro exitoso: ${wizardData.cantidadVendedores} vendedores y ${wizardData.cantidadAsesores} asesores creados en base de datos`, 'success');
+            
+            console.log('✅ Empleados registrados exitosamente:', {
+                vendedores: wizardData.cantidadVendedores,
+                asesores: wizardData.cantidadAsesores,
+                empresa: wizardData.empresa.nombre
+            });
+            
+        } catch (error) {
+            console.error('❌ Error al registrar empleados en backend:', error);
+            showToast('Error al conectar con el backend, guardando localmente como respaldo', 'warning');
+            
+            // Fallback a localStorage
+            await guardarEmpleadosEnLocalStorage();
+        }
+    }
+
+    async function guardarEmpleadosEnLocalStorage(empleadosServidor = null) {
+        console.log('💾 Guardando empleados en localStorage como respaldo...');
+        
+        // Obtener datos actuales
+        let vendedores = JSON.parse(localStorage.getItem('vendedores')) || [];
+        let asesores = JSON.parse(localStorage.getItem('asesores')) || [];
+        let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        
+        if (empleadosServidor) {
+            // Usar datos del servidor
+            empleadosServidor.forEach(emp => {
+                if (emp.tipo === 'VENDEDOR') {
+                    vendedores.push(emp);
+                    usuarios.push({
+                        id: emp.id,
+                        username: emp.username,
+                        password: emp.password,
+                        role: 'vendedor',
+                        nombre: emp.nombre,
+                        email: emp.email
+                    });
+                } else if (emp.tipo === 'ASESOR') {
+                    asesores.push(emp);
+                    usuarios.push({
+                        id: emp.id,
+                        username: emp.username,
+                        password: emp.password,
+                        role: 'asesor',
+                        nombre: emp.nombre,
+                        email: emp.email
+                    });
+                }
+            });
+        } else {
+            // Crear desde wizardData (modo fallback)
+            wizardData.vendedores.forEach((v, index) => {
+                const vendedor = {
+                    id: Date.now() + index,
+                    ...v,
+                    empresaId: wizardData.empresa.id,
+                    codigo: `${wizardData.empresa.nombre.substring(0, 3).toUpperCase()}-V-${String(vendedores.length + index + 1).padStart(4, '0')}`,
+                    captaciones: 0,
+                    estado: 'Activo',
+                    fechaCaptacion: new Date().toISOString()
+                };
+                vendedores.push(vendedor);
+                
+                usuarios.push({
+                    id: vendedor.id,
+                    username: v.username,
+                    password: v.password,
+                    role: 'vendedor',
+                    nombre: v.nombre,
+                    email: v.email
+                });
+            });
+            
+            wizardData.asesores.forEach((a, index) => {
+                const asesor = {
+                    id: Date.now() + 10000 + index,
+                    nombre: a.nombre,
+                    direccion: a.direccion,
+                    email: a.email,
+                    telefono: a.telefono,
+                    titulacion: a.titulacion,
+                    areasExpertise: [a.areaMercado],
+                    codigo: `ASE-${String(asesores.length + index + 1).padStart(4, '0')}`,
+                    empresaIds: [wizardData.empresa.id],
+                    estado: 'Activo'
+                };
+                asesores.push(asesor);
+                
+                usuarios.push({
+                    id: asesor.id,
+                    username: a.username,
+                    password: a.password,
+                    role: 'asesor',
+                    nombre: a.nombre,
+                    email: a.email
+                });
+            });
+        }
+        
+        // Guardar en localStorage
+        localStorage.setItem('vendedores', JSON.stringify(vendedores));
+        localStorage.setItem('asesores', JSON.stringify(asesores));
+        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        
+        console.log('✅ Empleados guardados en localStorage');
+    }
+
+    // ===== INICIALIZACIÓN COMPLETA MEJORADA =====
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("🚀 Inicializando sistema CyberVision Admin...");
+        
+        // Forzar inicialización completa
+        setTimeout(() => {
+            inicializarSistemaCompleto();
+        }, 500);
+    });
+
+    function inicializarSistemaCompleto() {
+        console.log("🔄 Inicializando sistema completo...");
+        
+        // Verificar que todas las funciones estén disponibles
+        const funcionesRequeridas = [
+            'nuevoVendedor', 'nuevoAsesor', 'nuevoPais',
+            'cargarTablaVendedores', 'cargarTablaAsesores', 'cargarTablaPaises'
+        ];
+        
+        funcionesRequeridas.forEach(func => {
+            console.log(`🔍 ${func}:`, typeof window[func]);
+        });
+        
+        // DESACTIVADO: No inicializar datos de prueba automáticamente
+        // La aplicación debe empezar con base de datos vacía
+        // if (typeof inicializarModelos === 'function') {
+        //     inicializarModelos();
+        //     console.log("✅ Modelos inicializados");
+        // }
+        console.log("ℹ️ Inicialización de datos de prueba DESACTIVADA - Base de datos vacía");
+        
+        // Inicializar modales
+        if (typeof inicializarModales === 'function') {
+            inicializarModales();
+            console.log("✅ Modales inicializados");
+        } else {
+            console.warn("⚠️ inicializarModales no disponible");
+        }
+        
+        // Cargar datos iniciales
+        cargarDatosIniciales();
+        
+        // Configurar logout
+        const logoutButtons = document.querySelectorAll('#logoutBtn, #logoutDropdown');
+        logoutButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                logout();
+            });
+        });
+
+        // Cargar dashboard por defecto
+        if (typeof loadDashboardContent === 'function') {
+            loadDashboardContent();
+        }
+
+        // Verificar funciones de emergencia
+        setTimeout(verificarFuncionesCRUD, 1000);
+    }
+
+    function cargarDatosIniciales() {
+        console.log("📊 Cargando datos iniciales...");
+        
+        // Cargar tablas si las funciones existen
+        setTimeout(() => {
+            if (typeof cargarTablaVendedores === 'function') {
+                cargarTablaVendedores();
+                console.log("✅ Tabla vendedores cargada");
+            } else {
+                console.error("❌ cargarTablaVendedores no disponible");
+            }
+            
+            if (typeof cargarTablaAsesores === 'function') {
+                cargarTablaAsesores();
+                console.log("✅ Tabla asesores cargada");
+            }
+            
+            if (typeof cargarTablaPaises === 'function') {
+                cargarTablaPaises();
+                console.log("✅ Tabla países cargada");
+            }
+            
+            // Cargar estadísticas
+            if (typeof storageService !== 'undefined') {
+                const stats = storageService.obtenerEstadisticas();
+                console.log('📊 Estadísticas del sistema:', stats);
+                actualizarEstadisticasDashboard(stats);
+            }
+        }, 1000);
+    }
+
+    function actualizarEstadisticasDashboard(stats) {
+        const statElements = {
+            'empresas-count': stats.totalEmpresas,
+            'vendedores-count': stats.totalVendedores, 
+            'asesores-count': stats.totalAsesores,
+            'facturacion-total': `$${(stats.facturacionTotal / 1000000).toFixed(1)}M`
+        };
+        
+        Object.keys(statElements).forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = statElements[id];
+            }
+        });
+    }
+
+    // ===== FUNCIONES DE EMERGENCIA =====
+    function verificarFuncionesCRUD() {
+        if (typeof nuevoVendedor === 'undefined') {
+            console.warn("⚠️ nuevoVendedor no disponible, creando función de emergencia");
+            window.nuevoVendedor = function() {
+                showToast('Esta funcionalidad estará disponible próximamente', 'info');
+                console.log('Abriendo modal de nuevo vendedor...');
+            };
+        }
+        
+        if (typeof nuevoAsesor === 'undefined') {
+            console.warn("⚠️ nuevoAsesor no disponible, creando función de emergencia");
+            window.nuevoAsesor = function() {
+                showToast('Esta funcionalidad estará disponible próximamente', 'info');
+                console.log('Abriendo modal de nuevo asesor...');
+            };
+        }
+        
+        if (typeof nuevoPais === 'undefined') {
+            console.warn("⚠️ nuevoPais no disponible, creando función de emergencia");
+            window.nuevoPais = function() {
+                showToast('Esta funcionalidad estará disponible próximamente', 'info');
+                console.log('Abriendo modal de nuevo país...');
+            };
+        }
+    }
+
+    // ===== FUNCIÓN DE DIAGNÓSTICO =====
+    function diagnosticarSistema() {
+        console.clear();
+        console.log("🔧 DIAGNÓSTICO DEL SISTEMA");
+        console.log("==========================");
+        
+        let diagnosticoHTML = '<div style="max-height: 400px; overflow-y: auto;">';
+        diagnosticoHTML += '<h5>🔧 Diagnóstico del Sistema</h5><hr>';
+        
+        // Verificar funciones CRUD
+        const funciones = {
+            'nuevoVendedor': typeof nuevoVendedor,
+            'nuevoAsesor': typeof nuevoAsesor,
+            'nuevoPais': typeof nuevoPais,
+            'storageService': typeof storageService,
+            'inicializarModelos': typeof inicializarModelos,
+            'notificationService': typeof notificationService,
+            'pdfExportService': typeof pdfExportService
+        };
+        
+        diagnosticoHTML += '<h6>📦 Funciones del Sistema:</h6>';
+        diagnosticoHTML += '<ul>';
+        Object.entries(funciones).forEach(([nombre, tipo]) => {
+            const icono = tipo === 'function' || tipo === 'object' ? '✅' : '❌';
+            diagnosticoHTML += `<li>${icono} <strong>${nombre}:</strong> ${tipo}</li>`;
+        });
+        diagnosticoHTML += '</ul>';
+        
+        console.table(funciones);
+        
+        // Verificar datos
+        if (typeof storageService !== 'undefined') {
+            const stats = storageService.obtenerEstadisticas();
+            console.log('📊 Datos del sistema:', stats);
+            
+            diagnosticoHTML += '<h6>📊 Estadísticas del Sistema:</h6>';
+            diagnosticoHTML += '<ul>';
+            diagnosticoHTML += `<li>Empresas: <strong>${stats.totalEmpresas}</strong></li>`;
+            diagnosticoHTML += `<li>Vendedores: <strong>${stats.totalVendedores}</strong></li>`;
+            diagnosticoHTML += `<li>Asesores: <strong>${stats.totalAsesores}</strong></li>`;
+            diagnosticoHTML += `<li>Países: <strong>${stats.totalPaises}</strong></li>`;
+            diagnosticoHTML += `<li>Captaciones: <strong>${stats.totalCaptaciones}</strong></li>`;
+            diagnosticoHTML += '</ul>';
+        }
+        
+        // Verificar localStorage
+        console.log('💾 localStorage:');
+        const modelos = ['empresas', 'vendedores', 'asesores', 'paises', 'areasMercado', 'captaciones'];
+        
+        diagnosticoHTML += '<h6>💾 Datos en LocalStorage:</h6>';
+        diagnosticoHTML += '<ul>';
+        modelos.forEach(modelo => {
+            const datos = localStorage.getItem(modelo);
+            const cantidad = datos ? JSON.parse(datos).length : 0;
+            const icono = cantidad > 0 ? '✅' : '⚠️';
+            console.log(`- ${modelo}:`, datos ? JSON.parse(datos).length + ' registros' : 'No existe');
+            diagnosticoHTML += `<li>${icono} <strong>${modelo}:</strong> ${cantidad} registros</li>`;
+        });
+        diagnosticoHTML += '</ul>';
+        
+        diagnosticoHTML += '<hr><p class="text-muted mb-0"><small>También puedes revisar la consola del navegador (F12) para más detalles.</small></p>';
+        diagnosticoHTML += '</div>';
+        
+        // Mostrar en modal
+        const modalHTML = `
+            <div class="modal fade" id="diagnosticoModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content" style="background: var(--cyber-gray); color: var(--text-light);">
+                        <div class="modal-header" style="border-bottom: 1px solid var(--border-blue);">
+                            <h5 class="modal-title">Diagnóstico del Sistema</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${diagnosticoHTML}
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid var(--border-blue);">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Eliminar modal anterior si existe
+        const oldModal = document.getElementById('diagnosticoModal');
+        if (oldModal) oldModal.remove();
+        
+        // Agregar nuevo modal
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('diagnosticoModal'));
+        modal.show();
+    }
+
+    // ===== FUNCIÓN DE DIAGNÓSTICO =====
+    function diagnosticarSistema_old() {
+        console.clear();
+        console.log("🔧 DIAGNÓSTICO DEL SISTEMA");
+        console.log("==========================");
+        
+        // Verificar funciones CRUD
+        const funciones = {
+            'nuevoVendedor': typeof nuevoVendedor,
+            'nuevoAsesor': typeof nuevoAsesor,
+            'nuevoPais': typeof nuevoPais,
+            'storageService': typeof storageService,
+            'inicializarModelos': typeof inicializarModelos,
+            'inicializarModales': typeof inicializarModales
+        };
+        
+        console.table(funciones);
+        
+        // Verificar datos
+        if (typeof storageService !== 'undefined') {
+            const stats = storageService.obtenerEstadisticas();
+            console.log('📊 Datos del sistema:', stats);
+        }
+        
+        // Verificar localStorage
+        console.log('💾 localStorage:');
+        const modelos = ['empresas', 'vendedores', 'asesores', 'paises', 'areasMercado', 'captaciones'];
+        modelos.forEach(modelo => {
+            const datos = localStorage.getItem(modelo);
+            console.log(`- ${modelo}:`, datos ? JSON.parse(datos).length + ' registros' : 'No existe');
+        });
+        
+        showToast('Diagnóstico completado. Revisa la consola para más detalles', 'info');
+    }
+
+    function logout() {
+        showConfirm(
+            '¿Está seguro de que desea cerrar sesión?',
+            function() {
+                sessionStorage.removeItem('currentUser');
+                showToast('Sesión cerrada correctamente', 'success');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+            },
+            {
+                title: 'Cerrar Sesión',
+                icon: 'fas fa-sign-out-alt text-warning',
+                confirmText: 'Cerrar Sesión',
+                btnClass: 'btn-warning'
+            }
+        );
+    }
+    </script>
+</body>
+</html>

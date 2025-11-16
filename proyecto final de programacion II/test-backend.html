@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Conexión Backend</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5><i class="fas fa-wifi"></i> Prueba de Conexión Backend</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultados"></div>
+                        
+                        <h6 class="mt-4">Pruebas de API:</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <button class="btn btn-outline-primary w-100" onclick="probarHealth()">
+                                    <i class="fas fa-heartbeat"></i> Health Check
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <button class="btn btn-outline-success w-100" onclick="probarLogin()">
+                                    <i class="fas fa-sign-in-alt"></i> Login Admin
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <button class="btn btn-outline-info w-100" onclick="probarPaises()">
+                                    <i class="fas fa-globe"></i> Listar Países
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <button class="btn btn-outline-warning w-100" onclick="probarEmpresas()">
+                                    <i class="fas fa-building"></i> Listar Empresas
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <strong>Estado del Backend:</strong> 
+                                <span id="estadoBackend" class="badge bg-secondary">No probado</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let authHeader = null;
+
+        function log(mensaje, tipo = 'info') {
+            const resultados = document.getElementById('resultados');
+            const timestamp = new Date().toLocaleTimeString();
+            const clase = tipo === 'error' ? 'danger' : (tipo === 'success' ? 'success' : 'info');
+            
+            resultados.innerHTML += `
+                <div class="alert alert-${clase} alert-dismissible" role="alert">
+                    <small class="text-muted">[${timestamp}]</small> ${mensaje}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            resultados.scrollTop = resultados.scrollHeight;
+        }
+
+        function actualizarEstado(estado, tipo = 'secondary') {
+            const estadoBackend = document.getElementById('estadoBackend');
+            estadoBackend.textContent = estado;
+            estadoBackend.className = `badge bg-${tipo}`;
+        }
+
+        async function probarHealth() {
+            try {
+                log('🔍 Probando Health Check...');
+                const response = await fetch('http://localhost:8080/actuator/health');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Health Check exitoso: ${data.status}`, 'success');
+                    actualizarEstado('Activo', 'success');
+                } else {
+                    log(`❌ Health Check falló: ${response.status}`, 'error');
+                    actualizarEstado('Error', 'danger');
+                }
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+                actualizarEstado('Sin conexión', 'danger');
+            }
+        }
+
+        async function probarLogin() {
+            try {
+                log('🔐 Probando login como admin...');
+                
+                const credentials = btoa('admin:admin');
+                authHeader = `Basic ${credentials}`;
+                
+                const response = await fetch('http://localhost:8080/api/admin/vendedores', {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Login exitoso. Se encontraron ${data.length} vendedores.`, 'success');
+                } else if (response.status === 401) {
+                    log('❌ Credenciales incorrectas', 'error');
+                } else {
+                    log(`❌ Error en login: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error en login: ${error.message}`, 'error');
+            }
+        }
+
+        async function probarPaises() {
+            if (!authHeader) {
+                log('⚠️ Primero debes hacer login', 'error');
+                return;
+            }
+
+            try {
+                log('🌍 Cargando países...');
+                
+                const response = await fetch('http://localhost:8080/api/admin/paises', {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const paises = await response.json();
+                    log(`✅ Se cargaron ${paises.length} países: ${paises.map(p => p.nombre).join(', ')}`, 'success');
+                } else {
+                    log(`❌ Error al cargar países: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error al cargar países: ${error.message}`, 'error');
+            }
+        }
+
+        async function probarEmpresas() {
+            if (!authHeader) {
+                log('⚠️ Primero debes hacer login', 'error');
+                return;
+            }
+
+            try {
+                log('🏢 Cargando empresas...');
+                
+                const response = await fetch('http://localhost:8080/api/admin/empresas', {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const empresas = await response.json();
+                    log(`✅ Se cargaron ${empresas.length} empresas`, 'success');
+                    if (empresas.length > 0) {
+                        log(`📋 Empresas: ${empresas.map(e => e.nombre).join(', ')}`);
+                    }
+                } else {
+                    log(`❌ Error al cargar empresas: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error al cargar empresas: ${error.message}`, 'error');
+            }
+        }
+
+        // Probar conexión automáticamente al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Iniciando pruebas automáticas...');
+            setTimeout(probarHealth, 1000);
+        });
+    </script>
+</body>
+</html>
